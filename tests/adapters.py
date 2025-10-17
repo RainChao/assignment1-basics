@@ -28,8 +28,7 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-
-    raise NotImplementedError
+    return in_features @ weights.t()
 
 
 def run_embedding(
@@ -50,8 +49,8 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-
-    raise NotImplementedError
+    output = weights[token_ids]
+    return output
 
 
 def run_swiglu(
