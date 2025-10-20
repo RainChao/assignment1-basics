@@ -91,46 +91,49 @@ def test_multihead_self_attention(numpy_snapshot, in_embeddings, d_model, n_head
     numpy_snapshot.assert_match(actual_output, atol=1e-6)
 
 
-# def test_multihead_self_attention_with_rope(
-#     numpy_snapshot, in_embeddings, d_model, n_heads, ts_state_dict, n_keys, theta, pos_ids
-# ):
-#     d, _ = ts_state_dict
-#     q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight = [
-#         d[f"layers.0.attn.{k}_proj.weight"] for k in ["q", "k", "v", "output"]
-#     ]
-#     pos_ids = rearrange(pos_ids, "seq -> 1 seq")
-#     actual_output = run_multihead_self_attention_with_rope(
-#         d_model=d_model,
-#         num_heads=n_heads,
-#         max_seq_len=n_keys,
-#         theta=theta,
-#         q_proj_weight=q_proj_weight,
-#         k_proj_weight=k_proj_weight,
-#         v_proj_weight=v_proj_weight,
-#         o_proj_weight=o_proj_weight,
-#         in_features=in_embeddings,
-#         token_positions=pos_ids,
-#     )
-#     numpy_snapshot.assert_match(actual_output, atol=1e-6)
+def test_multihead_self_attention_with_rope(
+    numpy_snapshot, in_embeddings, d_model, n_heads, ts_state_dict, n_keys, theta, pos_ids
+):
+    d, _ = ts_state_dict
+    q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight = [
+        d[f"layers.0.attn.{k}_proj.weight"] for k in ["q", "k", "v", "output"]
+    ]
+    # reference_weights = torch.load(FIXTURES_PATH / "unbatched_multihead_self_attention_weights.pt")
+    # expected_output = torch.load(FIXTURES_PATH / "unbatched_multihead_self_attention_expected_output.pt")
+    pos_ids = rearrange(pos_ids, "seq -> 1 seq")
+    actual_output = run_multihead_self_attention_with_rope(
+        d_model=d_model,
+        num_heads=n_heads,
+        max_seq_len=n_keys,
+        theta=theta,
+        q_proj_weight=q_proj_weight,
+        k_proj_weight=k_proj_weight,
+        v_proj_weight=v_proj_weight,
+        o_proj_weight=o_proj_weight,
+        in_features=in_embeddings,
+        token_positions=pos_ids,
+    )
+    # numpy.testing.assert_allclose(actual_output.detach().numpy(), expected_output.detach().numpy(), atol=1e-6)
+    numpy_snapshot.assert_match(actual_output, atol=1e-6)
 
 
-# def test_transformer_lm(
-#     numpy_snapshot, vocab_size, n_keys, d_model, n_layers, n_heads, d_ff, theta, ts_state_dict, in_indices
-# ):
-#     state_dict, _ = ts_state_dict
+def test_transformer_lm(
+    numpy_snapshot, vocab_size, n_keys, d_model, n_layers, n_heads, d_ff, theta, ts_state_dict, in_indices
+):
+    state_dict, _ = ts_state_dict
 
-#     actual_output = run_transformer_lm(
-#         vocab_size=vocab_size,
-#         context_length=n_keys,
-#         d_model=d_model,
-#         num_layers=n_layers,
-#         num_heads=n_heads,
-#         d_ff=d_ff,
-#         rope_theta=theta,
-#         weights=state_dict,
-#         in_indices=in_indices,
-#     )
-#     numpy_snapshot.assert_match(actual_output, atol=1e-4, rtol=1e-2)
+    actual_output = run_transformer_lm(
+        vocab_size=vocab_size,
+        context_length=n_keys,
+        d_model=d_model,
+        num_layers=n_layers,
+        num_heads=n_heads,
+        d_ff=d_ff,
+        rope_theta=theta,
+        weights=state_dict,
+        in_indices=in_indices,
+    )
+    numpy_snapshot.assert_match(actual_output, atol=1e-4, rtol=1e-2)
 
 
 # def test_transformer_lm_truncated_input(
@@ -155,32 +158,32 @@ def test_multihead_self_attention(numpy_snapshot, in_embeddings, d_model, n_head
 #     )
 
 
-# def test_transformer_block(numpy_snapshot, ts_state_dict, in_embeddings, d_model, n_heads, d_ff, n_keys, theta):
-#     block_weights = {k.replace("layers.0.", ""): v for k, v in ts_state_dict[0].items() if "layers.0." in k}
+def test_transformer_block(numpy_snapshot, ts_state_dict, in_embeddings, d_model, n_heads, d_ff, n_keys, theta):
+    block_weights = {k.replace("layers.0.", ""): v for k, v in ts_state_dict[0].items() if "layers.0." in k}
 
-#     actual_output = run_transformer_block(
-#         d_model=d_model,
-#         num_heads=n_heads,
-#         d_ff=d_ff,
-#         max_seq_len=n_keys,
-#         theta=theta,
-#         weights=block_weights,
-#         in_features=in_embeddings,
-#     )
-#     numpy_snapshot.assert_match(
-#         actual_output,
-#         atol=1e-6,
-#     )
+    actual_output = run_transformer_block(
+        d_model=d_model,
+        num_heads=n_heads,
+        d_ff=d_ff,
+        max_seq_len=n_keys,
+        theta=theta,
+        weights=block_weights,
+        in_features=in_embeddings,
+    )
+    numpy_snapshot.assert_match(
+        actual_output,
+        atol=1e-6,
+    )
 
 
-# def test_rmsnorm(numpy_snapshot, ts_state_dict, in_embeddings):
-#     state_dict, _ = ts_state_dict
-#     reference_weights = state_dict["layers.1.ln1.weight"]
-#     d_model = reference_weights.shape[0]
+def test_rmsnorm(numpy_snapshot, ts_state_dict, in_embeddings):
+    state_dict, _ = ts_state_dict
+    reference_weights = state_dict["layers.1.ln1.weight"]
+    d_model = reference_weights.shape[0]
 
-#     actual_output = run_rmsnorm(d_model=d_model, eps=1e-5, weights=reference_weights, in_features=in_embeddings)
+    actual_output = run_rmsnorm(d_model=d_model, eps=1e-5, weights=reference_weights, in_features=in_embeddings)
 
-#     numpy_snapshot.assert_match(actual_output, atol=1e-6)
+    numpy_snapshot.assert_match(actual_output, atol=1e-6)
 
 
 # def test_rope(numpy_snapshot, in_embeddings, d_model, theta, n_queries, pos_ids):

@@ -185,7 +185,20 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    mhaRoPE = mymodule.MultiheadSelfAttentionWithRoPE(
+        d_model=d_model,
+        num_heads=num_heads,
+        max_seq_len=max_seq_len,
+        theta=theta
+    )
+    mhaRoPE.load_state_dict({
+        "w_qkv.weight": torch.cat([q_proj_weight, k_proj_weight, v_proj_weight], dim=0),
+        "w_o.weight": o_proj_weight
+    })
+    return mhaRoPE(
+        in_features,
+        token_positions=token_positions
+    )
 
 
 def run_rope(
@@ -280,7 +293,22 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    transformer_block = mymodule.TransformerBlock(d_model, num_heads, max_seq_len, d_ff, theta)
+    transformer_block.load_state_dict({
+        "self_attention.w_qkv.weight": torch.cat(
+            [
+                weights["attn.q_proj.weight"],
+                weights["attn.k_proj.weight"],
+                weights["attn.v_proj.weight"]
+            ], dim=0),
+        "self_attention.w_o.weight": weights["attn.output_proj.weight"],
+        "feed_forward.weight1.weight": weights["ffn.w1.weight"],
+        "feed_forward.weight2.weight": weights["ffn.w2.weight"],
+        "feed_forward.weight3.weight": weights["ffn.w3.weight"],
+        "layer_norm1.weight": weights["ln1.weight"],
+        "layer_norm2.weight": weights["ln2.weight"]
+    })
+    return transformer_block(in_features)
 
 
 def run_transformer_lm(
@@ -362,7 +390,57 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    transform_lm = mymodule.TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        theta=rope_theta,
+        # device="cuda:0"
+    )
+    transform_lm.load_state_dict({
+        "token_embedding.weight": weights["token_embeddings.weight"],
+        "ln_final.weight": weights["ln_final.weight"],
+        "output_embedding.weight": weights["lm_head.weight"],
+        **{
+            f"tf_blocks.{i}.self_attention.w_qkv.weight": torch.cat(
+                [
+                    weights[f"layers.{i}.attn.q_proj.weight"],
+                    weights[f"layers.{i}.attn.k_proj.weight"],
+                    weights[f"layers.{i}.attn.v_proj.weight"],
+                ],
+                dim=0,
+            )
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.self_attention.w_o.weight": weights[f"layers.{i}.attn.output_proj.weight"]
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.layer_norm1.weight": weights[f"layers.{i}.ln1.weight"]
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.feed_forward.weight1.weight": weights[f"layers.{i}.ffn.w1.weight"]
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.feed_forward.weight2.weight": weights[f"layers.{i}.ffn.w2.weight"]
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.feed_forward.weight3.weight": weights[f"layers.{i}.ffn.w3.weight"]
+            for i in range(num_layers)
+        },
+        **{
+            f"tf_blocks.{i}.layer_norm2.weight": weights[f"layers.{i}.ln2.weight"]
+            for i in range(num_layers)
+        },
+    })
+    return transform_lm(in_indices)
 
 
 def run_rmsnorm(
@@ -385,7 +463,9 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    norm = mymodule.RMSNorm(d_model, eps)
+    norm.weight.data = weights
+    return norm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
