@@ -57,3 +57,26 @@ def learning_rate_cosine_schedule(
         )
     else:
         return min_learning_rate
+
+
+def save_checkpoint(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    epoch: int,
+    checkpoint_dir: str) -> None:
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'epoch': epoch
+    }, checkpoint_dir)
+
+
+def load_checkpoint(
+    checkpoint_dir: str,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer) -> int:
+    checkpoint = torch.load(checkpoint_dir)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    return checkpoint['epoch']
